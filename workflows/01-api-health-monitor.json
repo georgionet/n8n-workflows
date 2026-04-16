@@ -154,21 +154,6 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [1200, 420]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.LOG_WEBHOOK_URL }}",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ event: 'health_check', data: $json }) }}",
-        "options": {}
-      },
-      "id": "log-webhook",
-      "name": "Send to Logger",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1440, 420]
     }
   ],
   "connections": {
@@ -217,17 +202,6 @@
         [
           {
             "node": "Send Alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log OK": {
-      "main": [
-        [
-          {
-            "node": "Send to Logger",
             "type": "main",
             "index": 0
           }
