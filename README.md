@@ -16,7 +16,7 @@ Monitorea endpoints HTTP cada 30 minutos y envia alertas por Telegram cuando un 
 ---
 
 ### 2. Data Pipeline - CSV to Report
-![Data Pipeline](workflows/02-data-pipeline-csv.png)
+![Data Pipeline](workflows/02-data-pipeline-csv.jpeg)
 
 Recibe un CSV via Webhook, transforma y limpia los datos, filtra registros validos, genera un reporte limpio y lo devuelve como descarga.
 

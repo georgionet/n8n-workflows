@@ -2,6 +2,8 @@
 
 Recibe un CSV via Webhook, transforma y limpia los datos, filtra registros validos, genera un reporte limpio y lo devuelve como descarga. Notifica a Slack con el resumen.
 
+![Workflow en n8n](02-data-pipeline-csv.jpeg)
+
 ## Flujo
 
 ```
