@@ -1,0 +1,240 @@
+{
+  "name": "Multi-Channel Notification Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notify",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 400],
+      "webhookId": "notification-router"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate incoming event schema\nconst event = $input.first().json;\nconst errors = [];\n\nif (!event.type) errors.push('Missing required field: type');\nif (!event.message) errors.push('Missing required field: message');\nif (!event.priority) errors.push('Missing required field: priority');\n\n// Validate type\nconst validTypes = ['alert', 'info', 'report'];\nif (event.type && !validTypes.includes(event.type)) {\n  errors.push(`Invalid type: ${event.type}. Must be one of: ${validTypes.join(', ')}`);\n}\n\n// Validate priority\nconst validPriorities = ['low', 'medium', 'high', 'critical'];\nif (event.priority && !validPriorities.includes(event.priority)) {\n  errors.push(`Invalid priority: ${event.priority}. Must be one of: ${validPriorities.join(', ')}`);\n}\n\nif (errors.length > 0) {\n  return [{\n    json: {\n      success: false,\n      errors: errors,\n      received: event\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...event,\n    timestamp: new Date().toISOString(),\n    id: Math.random().toString(36).substring(2, 10)\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validate Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "label": "alert",
+              "value": "alert",
+              "output": 0
+            },
+            {
+              "label": "info",
+              "value": "info",
+              "output": 1
+            },
+            {
+              "label": "report",
+              "value": "report",
+              "output": 2
+            }
+          ]
+        },
+        "dataPropertyName": "type",
+        "fallbackOutput": 1
+      },
+      "id": "route-type",
+      "name": "Route by Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 ALERT: {{ $json.priority.toUpperCase() }}\n\n{{ $json.message }}\n\nSource: {{ $json.source || 'unknown' }}\nID: {{ $json.id }}\nTime: {{ $json.timestamp }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-telegram",
+      "name": "Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [960, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIALS_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM }}",
+        "toEmail": "={{ $env.NOTIFICATION_EMAIL }}",
+        "subject": "=n8n Info: {{ $json.message.substring(0, 50) }}",
+        "text": "=Info Notification\n\nMessage: {{ $json.message }}\nSource: {{ $json.source || 'system' }}\nPriority: {{ $json.priority }}\nTime: {{ $json.timestamp }}\nID: {{ $json.id }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [960, 400],
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CREDENTIALS_ID",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: `📊 Report: ${$json.message}`, blocks: [{ type: 'section', text: { type: 'mrkdwn', text: `*Report Generated*\\n> ${$json.message}\\n> Source: ${$json.source || 'system'}\\n> ID: \\`${$json.id}\\`` } }] }) }}",
+        "options": {}
+      },
+      "id": "send-slack",
+      "name": "Slack Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 600]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build final response\nconst results = $input.all();\nconst channel = results[0]?.json || {};\n\nreturn [{\n  json: {\n    success: true,\n    event_id: channel.id || 'unknown',\n    type: channel.type || 'unknown',\n    channel: channel.type === 'alert' ? 'telegram' : channel.type === 'info' ? 'email' : 'slack',\n    delivered_at: new Date().toISOString(),\n    processed: results.length\n  }\n}];"
+      },
+      "id": "build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Validate Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Schema": {
+      "main": [
+        [
+          {
+            "node": "Route by Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Type": {
+      "main": [
+        [
+          {
+            "node": "Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Slack Report": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "notifications"
+    },
+    {
+      "name": "routing"
+    }
+  ]
+}
