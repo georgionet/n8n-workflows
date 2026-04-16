@@ -36,6 +36,38 @@
     },
     {
       "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "checked_url",
+              "value": "={{ $('Check API').item.json.request?.url || $json.url || 'https://httpbin.org/status/200' }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "status_code",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "a3",
+              "name": "response_time",
+              "value": "={{ $json.headers?.['x-response-time'] || 'N/A' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "enrich-data",
+      "name": "Enrich Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true
@@ -43,7 +75,7 @@
           "conditions": [
             {
               "id": "status-condition",
-              "leftValue": "={{ $json.statusCode }}",
+              "leftValue": "={{ $json.status_code }}",
               "rightValue": 200,
               "operator": {
                 "type": "number",
@@ -58,12 +90,12 @@
       "name": "Is Healthy?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [700, 300]
+      "position": [940, 300]
     },
     {
       "parameters": {
         "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
-        "text": "=🔴 API DOWN\n\nURL: {{ $('Check API').item.json.url }}\nStatus: {{ $json.statusCode }}\nTime: {{ $now.toISO() }}\n\nResponse time exceeded or unexpected status code.",
+        "text": "=🔴 API DOWN\n\nURL: {{ $json.checked_url }}\nStatus: {{ $json.status_code }}\nTime: {{ $now.toISO() }}\n\nThe endpoint did not return a 200 status code or the request failed.",
         "additionalFields": {
           "parse_mode": "Markdown"
         }
@@ -72,7 +104,7 @@
       "name": "Send Alert",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [960, 200],
+      "position": [1200, 200],
       "credentials": {
         "telegramApi": {
           "id": "TELEGRAM_CREDENTIALS_ID",
@@ -87,13 +119,13 @@
             {
               "id": "log-status",
               "name": "status",
-              "value": "={{ $json.statusCode }}",
+              "value": "={{ $json.status_code }}",
               "type": "number"
             },
             {
               "id": "log-url",
               "name": "url",
-              "value": "={{ $('Check API').item.json.url }}",
+              "value": "={{ $json.checked_url }}",
               "type": "string"
             },
             {
@@ -116,7 +148,7 @@
       "name": "Log OK",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [960, 420]
+      "position": [1200, 420]
     },
     {
       "parameters": {
@@ -131,7 +163,7 @@
       "name": "Send to Logger",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 420]
+      "position": [1440, 420]
     }
   ],
   "connections": {
@@ -147,6 +179,17 @@
       ]
     },
     "Check API": {
+      "main": [
+        [
+          {
+            "node": "Enrich Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich Data": {
       "main": [
         [
           {
