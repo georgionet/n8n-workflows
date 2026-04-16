@@ -22,7 +22,12 @@
       "parameters": {
         "url": "={{ $json.url || 'https://httpbin.org/status/200' }}",
         "options": {
-          "timeout": 10000
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
         }
       },
       "id": "http-check",
