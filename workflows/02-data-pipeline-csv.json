@@ -163,6 +163,21 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [1660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_SLACK_WEBHOOK_URL",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: `📊 CSV Pipeline completado\\n✅ ${$('Filter Valid').all().length} registros validos procesados\\n📥 ${$('Transform Data').all().length} registros recibidos en total` }) }}",
+        "options": {}
+      },
+      "id": "notify-slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1660, 500]
     }
   ],
   "connections": {
@@ -226,6 +241,11 @@
         [
           {
             "node": "Return File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Slack",
             "type": "main",
             "index": 0
           }
