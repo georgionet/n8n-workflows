@@ -2,6 +2,8 @@
 
 Recibe eventos via Webhook, valida el schema, y rutea a diferentes canales (Telegram, Email, Slack) segun el tipo de evento. Devuelve confirmacion con el estado del envio.
 
+![Workflow en n8n](03-notification-router.jpeg)
+
 ## Flujo
 
 ```

@@ -27,7 +27,7 @@ Recibe un CSV via Webhook, transforma y limpia los datos, filtra registros valid
 ---
 
 ### 3. Multi-Channel Notification Router
-![Notification Router](workflows/03-notification-router.png)
+![Notification Router](workflows/03-notification-router.jpeg)
 
 Recibe eventos via Webhook, valida el schema, y rutea a diferentes canales (Telegram, Email, Slack) segun el tipo de evento.
 
