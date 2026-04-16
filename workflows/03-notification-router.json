@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validate incoming event schema\nconst event = $input.first().json;\nconst errors = [];\n\nif (!event.type) errors.push('Missing required field: type');\nif (!event.message) errors.push('Missing required field: message');\nif (!event.priority) errors.push('Missing required field: priority');\n\n// Validate type\nconst validTypes = ['alert', 'info', 'report'];\nif (event.type && !validTypes.includes(event.type)) {\n  errors.push(`Invalid type: ${event.type}. Must be one of: ${validTypes.join(', ')}`);\n}\n\n// Validate priority\nconst validPriorities = ['low', 'medium', 'high', 'critical'];\nif (event.priority && !validPriorities.includes(event.priority)) {\n  errors.push(`Invalid priority: ${event.priority}. Must be one of: ${validPriorities.join(', ')}`);\n}\n\nif (errors.length > 0) {\n  return [{\n    json: {\n      success: false,\n      errors: errors,\n      received: event\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...event,\n    timestamp: new Date().toISOString(),\n    id: Math.random().toString(36).substring(2, 10)\n  }\n}];"
+        "jsCode": "// Validate incoming event schema\nconst event = $input.first().json;\nconst errors = [];\n\nif (!event.type) errors.push('Missing required field: type');\nif (!event.message) errors.push('Missing required field: message');\nif (!event.priority) errors.push('Missing required field: priority');\n\nconst validTypes = ['alert', 'info', 'report'];\nif (event.type && !validTypes.includes(event.type)) {\n  errors.push(`Invalid type: ${event.type}. Must be: ${validTypes.join(', ')}`);\n}\n\nconst validPriorities = ['low', 'medium', 'high', 'critical'];\nif (event.priority && !validPriorities.includes(event.priority)) {\n  errors.push(`Invalid priority: ${event.priority}. Must be: ${validPriorities.join(', ')}`);\n}\n\nif (errors.length > 0) {\n  return [{ json: { success: false, errors: errors, received: event } }];\n}\n\nreturn [{\n  json: {\n    ...event,\n    timestamp: new Date().toISOString(),\n    id: Math.random().toString(36).substring(2, 10)\n  }\n}];"
       },
       "id": "validate-input",
       "name": "Validate Schema",
@@ -27,37 +27,29 @@
     },
     {
       "parameters": {
-        "rules": {
-          "rules": [
-            {
-              "label": "alert",
-              "value": "alert",
-              "output": 0
-            },
-            {
-              "label": "info",
-              "value": "info",
-              "output": 1
-            },
-            {
-              "label": "report",
-              "value": "report",
-              "output": 2
-            }
-          ]
-        },
-        "dataPropertyName": "type",
+        "dataType": "string",
+        "value1": "={{ $json.type }}",
+        "rules": [
+          {
+            "value2": "alert",
+            "outputKey": "Alert"
+          },
+          {
+            "value2": "report",
+            "outputKey": "Report"
+          }
+        ],
         "fallbackOutput": 1
       },
       "id": "route-type",
       "name": "Route by Type",
       "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
+      "typeVersion": 1,
       "position": [700, 400]
     },
     {
       "parameters": {
-        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
         "text": "=🚨 ALERT: {{ $json.priority.toUpperCase() }}\n\n{{ $json.message }}\n\nSource: {{ $json.source || 'unknown' }}\nID: {{ $json.id }}\nTime: {{ $json.timestamp }}",
         "additionalFields": {
           "parse_mode": "Markdown"
@@ -77,28 +69,8 @@
     },
     {
       "parameters": {
-        "fromEmail": "={{ $env.SMTP_FROM }}",
-        "toEmail": "={{ $env.NOTIFICATION_EMAIL }}",
-        "subject": "=n8n Info: {{ $json.message.substring(0, 50) }}",
-        "text": "=Info Notification\n\nMessage: {{ $json.message }}\nSource: {{ $json.source || 'system' }}\nPriority: {{ $json.priority }}\nTime: {{ $json.timestamp }}\nID: {{ $json.id }}",
-        "options": {}
-      },
-      "id": "send-email",
-      "name": "Send Email",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [960, 400],
-      "credentials": {
-        "smtp": {
-          "id": "SMTP_CREDENTIALS_ID",
-          "name": "SMTP Account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "method": "POST",
-        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "url": "YOUR_SLACK_WEBHOOK_URL",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ text: `📊 Report: ${$json.message}`, blocks: [{ type: 'section', text: { type: 'mrkdwn', text: `*Report Generated*\\n> ${$json.message}\\n> Source: ${$json.source || 'system'}\\n> ID: \\`${$json.id}\\`` } }] }) }}",
@@ -112,25 +84,13 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combinationMode": "mergeByPosition",
-        "options": {}
-      },
-      "id": "merge-results",
-      "name": "Merge Results",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [1200, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build final response\nconst results = $input.all();\nconst channel = results[0]?.json || {};\n\nreturn [{\n  json: {\n    success: true,\n    event_id: channel.id || 'unknown',\n    type: channel.type || 'unknown',\n    channel: channel.type === 'alert' ? 'telegram' : channel.type === 'info' ? 'email' : 'slack',\n    delivered_at: new Date().toISOString(),\n    processed: results.length\n  }\n}];"
+        "jsCode": "// Build final response\nconst input = $input.first().json;\nconst type = input.type || 'unknown';\nconst channel = type === 'alert' ? 'telegram' : 'slack';\n\nreturn [{\n  json: {\n    success: true,\n    event_id: input.id || 'unknown',\n    type: type,\n    channel: channel,\n    delivered_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "build-response",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1440, 400]
+      "position": [1200, 400]
     }
   ],
   "connections": {
@@ -167,7 +127,7 @@
         ],
         [
           {
-            "node": "Send Email",
+            "node": "Build Response",
             "type": "main",
             "index": 0
           }
@@ -185,36 +145,14 @@
       "main": [
         [
           {
-            "node": "Merge Results",
+            "node": "Build Response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Email": {
-      "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
     "Slack Report": {
-      "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge Results": {
       "main": [
         [
           {
